@@ -1,0 +1,21 @@
+{
+  "name": "cargurus-stealth-scraper",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Advanced CarGurus scraper with stealth and network interception",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node src/main.js",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "author": "Your Name",
+  "license": "ISC",
+  "dependencies": {
+    "apify": "^3.5.1",
+    "playwright": "^1.44.1",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "devDependencies": {},
+  "repository": {}
+}

@@ -1,0 +1,62 @@
+{
+  "title": "CarGurus Stealth Scraper Input",
+  "type": "object",
+  "schemaVersion": 1,
+  "properties": {
+    "searchRadius": {
+      "title": "Search Radius (KM)",
+      "type": "integer",
+      "description": "Search radius in kilometers. Options: 25, 50, 75, 100, 250, 500, or 50000 (Nationwide)",
+      "default": 50000,
+      "minimum": 25,
+      "maximum": 50000
+    },
+    "currentPage": {
+      "title": "Current Page (optional)",
+      "type": "integer",
+      "description": "Manually set which page to scrape. Leave empty for auto-resume.",
+      "editor": "number",
+      "nullable": true
+    },
+    "maxPages": {
+      "title": "Max Pages",
+      "type": "integer",
+      "description": "Maximum number of pages to scrape (safety limit)",
+      "default": 73,
+      "minimum": 1
+    },
+    "maxResults": {
+      "title": "Cars Per Page",
+      "type": "integer",
+      "description": "How many cars to scrape from each page (typically 24)",
+      "default": 24,
+      "minimum": 1,
+      "maximum": 50
+    },
+    "filters": {
+      "title": "Filter Configuration",
+      "type": "object",
+      "description": "Filters to apply via UI automation",
+      "editor": "json",
+      "default": {
+        "makes": ["Ford", "GMC", "Chevrolet", "Cadillac"],
+        "bodyTypes": ["SUV / Crossover", "Pickup Truck"],
+        "maxMileage": 140000,
+        "minPrice": 35000,
+        "dealRatings": ["GREAT_PRICE", "GOOD_PRICE", "FAIR_PRICE"]
+      }
+    },
+    "proxyConfiguration": {
+      "title": "Proxy Configuration",
+      "type": "object",
+      "description": "Proxy settings (REQUIRED for stealth - use Canadian residential proxies)",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"],
+        "apifyProxyCountry": "CA"
+      }
+    }
+  },
+  "required": []
+}

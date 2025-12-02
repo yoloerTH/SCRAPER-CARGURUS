@@ -1,0 +1,39 @@
+{
+  "actorSpecification": 1,
+  "name": "cargurus-stealth-scraper",
+  "version": "1.0.0",
+  "buildTag": "latest",
+  "environmentVariables": {},
+  "dockerfile": "./Dockerfile",
+  "readme": "./README.md",
+  "input": "./INPUT_SCHEMA.json",
+  "storages": {
+    "dataset": {
+      "actorSpecification": 1,
+      "title": "CarGurus Listings",
+      "views": {
+        "overview": {
+          "title": "Overview",
+          "transformation": {
+            "fields": [
+              "vin",
+              "title",
+              "priceString",
+              "year",
+              "make",
+              "model",
+              "mileage",
+              "dealerName",
+              "dealerCity",
+              "url"
+            ]
+          },
+          "display": {
+            "component": "table",
+            "properties": {}
+          }
+        }
+      }
+    }
+  }
+}
