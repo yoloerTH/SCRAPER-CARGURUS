@@ -204,7 +204,14 @@ await Actor.main(async () => {
         if (state.lastScrapedDate === today) {
             // Same day → continue from where we left off
             startPage = state.nextPage || 1;
-            console.log(`📅 Continuing from page ${startPage} (same day: ${today})`);
+
+            // If we've exceeded maxPages, restart from page 1
+            if (startPage > maxPages) {
+                startPage = 1;
+                console.log(`📅 All pages completed! Restarting from page 1 (same day: ${today})`);
+            } else {
+                console.log(`📅 Continuing from page ${startPage} (same day: ${today})`);
+            }
         } else {
             // Different day or first run → reset to page 1
             startPage = 1;
@@ -508,7 +515,7 @@ await Actor.main(async () => {
 
                     // Send to webhook
                     try {
-                        const webhookUrl = 'https://n8n-production-0d7d.up.railway.app/webhook/cargurus';
+                        const webhookUrl = 'https://n8nsaved-production.up.railway.app/webhook/cargurus';
                         const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: {
