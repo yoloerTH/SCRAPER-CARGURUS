@@ -507,7 +507,8 @@ await Actor.main(async () => {
                     const dataToSave = {
                         type: 'car_listing',
                         ...carData,
-                        scrapedAt: new Date().toISOString()
+                        scrapedAt: new Date().toISOString(),
+                        source_scraper: 'Best'
                     };
 
                     await Actor.pushData(dataToSave);
@@ -515,7 +516,7 @@ await Actor.main(async () => {
 
                     // Send to webhook
                     try {
-                        const webhookUrl = 'https://n8nsaved-production.up.railway.app/webhook/cargurusb';
+                        const webhookUrl = 'https://n8nsaved-production.up.railway.app/webhook/cargurus';
                         const response = await fetch(webhookUrl, {
                             method: 'POST',
                             headers: {
