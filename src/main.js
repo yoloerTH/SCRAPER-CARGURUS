@@ -519,7 +519,7 @@ await Actor.main(async () => {
                 // Save car data
                 if (carData.vin || carData.title) {
                     const sourceScraper = pageToScrape >= 1 && pageToScrape <= 6
-                        ? 'Best (3-pager)'
+                        ? 'Best 3-pager'
                         : 'Best';
 
                     const dataToSave = {
