@@ -25,25 +25,113 @@ async function applyFilters(page, filters, searchRadius) {
     return true;
 }
 
+async function findDistanceDropdown(page) {
+    const selectors = [
+        'select[data-testid="select-filter-distance"]',
+        'select[aria-label="Distance from me"]',
+        'select',
+    ];
+
+    for (const selector of selectors) {
+        const matches = page.locator(selector);
+        const count = await matches.count();
+
+        for (let i = 0; i < count; i++) {
+            const locator = matches.nth(i);
+
+            try {
+                await locator.waitFor({ state: 'visible', timeout: 3000 });
+
+                const optionInfo = await locator.evaluate((select) =>
+                    Array.from(select.options).map((option) => ({
+                        value: option.value,
+                        label: option.getAttribute('label'),
+                        ariaLabel: option.getAttribute('aria-label'),
+                        text: option.textContent.trim(),
+                    }))
+                );
+
+                const hasExpectedOption = optionInfo.some((option) =>
+                    option.value === '50000' ||
+                    option.label?.toLowerCase() === 'nationwide' ||
+                    option.ariaLabel?.toLowerCase() === 'nationwide' ||
+                    option.text?.toLowerCase() === 'nationwide'
+                );
+
+                if (!hasExpectedOption) continue;
+
+                console.log(`  ✅ Found distance dropdown using selector: ${selector}`);
+                console.log(`  🔎 Distance options: ${JSON.stringify(optionInfo)}`);
+                return locator;
+            } catch (_) {
+                // Try next visible match
+            }
+        }
+    }
+
+    return null;
+}
+
 async function setSearchRadius(page, searchRadius) {
     try {
         console.log(`🌍 Setting search radius to: ${searchRadius === 50000 ? 'Nationwide' : searchRadius + ' km'}`);
 
-        // Select the search distance dropdown (6-minute timeout)
-        const dropdown = await page.locator('select[data-testid="select-filter-distance"]');
-        await dropdown.waitFor({ state: 'visible', timeout: 90000 });
+        const dropdown = await findDistanceDropdown(page);
 
-        // Select the value (50000 for Nationwide, or specific km value)
-        await dropdown.selectOption(searchRadius.toString(), { timeout: 90000 });
+        if (!dropdown) {
+            throw new Error('Could not find distance dropdown using any known selector');
+        }
 
-        console.log(`  ✅ Search radius set successfully`);
+        const options = await dropdown.evaluate((select) =>
+            Array.from(select.options).map((option) => ({
+                value: option.value,
+                label: option.getAttribute('label'),
+                ariaLabel: option.getAttribute('aria-label'),
+                text: option.textContent.trim(),
+            }))
+        );
 
-        // Wait for results to update
+        let optionValue = searchRadius.toString();
+
+        if (searchRadius === 50000) {
+            const nationwideOption = options.find((option) =>
+                option.value === '50000' ||
+                option.label?.toLowerCase() === 'nationwide' ||
+                option.ariaLabel?.toLowerCase() === 'nationwide' ||
+                option.text?.toLowerCase() === 'nationwide'
+            );
+
+            if (!nationwideOption) {
+                throw new Error(`Nationwide option not found. Available options: ${JSON.stringify(options)}`);
+            }
+
+            optionValue = nationwideOption.value;
+            console.log(`  🌍 Nationwide option resolved to value: ${optionValue}`);
+        }
+
+        await dropdown.selectOption(optionValue, { timeout: 90000 });
         await page.waitForTimeout(2000);
+
+        const selectedValue = await dropdown.inputValue();
+
+        if (selectedValue !== optionValue) {
+            throw new Error(`Distance dropdown value mismatch. Expected ${optionValue}, got ${selectedValue}`);
+        }
+
+        console.log(`  ✅ Search radius set successfully: ${selectedValue}`);
         return true;
 
     } catch (error) {
         console.log(`  ❌ Search radius failed: ${error.message}`);
+
+        try {
+            await Actor.setValue(
+                `debug-distance-dropdown-${Date.now()}.png`,
+                await page.screenshot({ fullPage: true }),
+                { contentType: 'image/png' }
+            );
+        } catch (_) {}
+
         return false;
     }
 }
