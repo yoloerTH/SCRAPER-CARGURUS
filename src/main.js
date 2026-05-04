@@ -529,22 +529,47 @@ await Actor.main(async () => {
                     const preflight = window.__PREFLIGHT__ || {};
                     const listing = preflight.listing || {};
 
-                    const vinEl = document.querySelector('div[data-cg-ft="vin"] span._value_ujq1z_13');
-                    const makeEl = document.querySelector('div[data-cg-ft="make"] span._value_ujq1z_13');
-                    const modelEl = document.querySelector('div[data-cg-ft="model"] span._value_ujq1z_13');
-                    const trimEl = document.querySelector('div[data-cg-ft="trim"] span._value_ujq1z_13');
-                    const yearEl = document.querySelector('div[data-cg-ft="year"] span._value_ujq1z_13');
-                    const bodyTypeEl = document.querySelector('div[data-cg-ft="bodyType"] span._value_ujq1z_13');
-                    const fuelTypeEl = document.querySelector('div[data-cg-ft="fuelType"] span._value_ujq1z_13');
-                    const mileageEl = document.querySelector('div[data-cg-ft="mileage"] span._value_ujq1z_13');
+                    const getFieldText = (fieldName) => {
+                        const container = document.querySelector(`[data-cg-ft="${fieldName}"]`);
 
-                    let vin = vinEl ? vinEl.textContent.trim() : (listing.vin || null);
+                        if (container) {
+                            const spans = Array.from(container.querySelectorAll('span'))
+                                .map((span) => span.textContent.trim())
+                                .filter(Boolean);
+
+                            if (spans.length > 0) {
+                                return spans[spans.length - 1];
+                            }
+                        }
+
+                        const legacyValue = document.querySelector(`div[data-cg-ft="${fieldName}"] span[class*="_value_"]`);
+                        return legacyValue ? legacyValue.textContent.trim() : null;
+                    };
+
+                    const getPriceText = () => {
+                        const selectors = [
+                            'div[data-cg-ft="price"] h2',
+                            'div[data-cg-ft="price"] [data-testid]',
+                            'div[class*="_price_"] h2',
+                            'h2[class*="price"]',
+                        ];
+
+                        for (const selector of selectors) {
+                            const element = document.querySelector(selector);
+                            const text = element ? element.textContent.trim() : null;
+                            if (text) return text;
+                        }
+
+                        return null;
+                    };
+
+                    let vin = getFieldText('vin') || listing.vin || null;
                     if (!vin && listing.specs) {
                         const vinSpec = listing.specs.find(s => s.label && s.label.toLowerCase() === 'vin');
                         if (vinSpec) vin = vinSpec.value;
                     }
 
-                    let fuelType = fuelTypeEl ? fuelTypeEl.textContent.trim() : null;
+                    let fuelType = getFieldText('fuelType');
                     if (!fuelType && listing.specs) {
                         const fuelSpec = listing.specs.find(s =>
                             s.label && (s.label.toLowerCase().includes('fuel') || s.label.toLowerCase().includes('engine'))
@@ -555,8 +580,7 @@ await Actor.main(async () => {
                     const titleEl = document.querySelector('h1[data-cg-ft="vdp-listing-title"]');
                     const title = titleEl ? titleEl.textContent.trim() : '';
 
-                    const priceEl = document.querySelector('div._price_1yep1_1 h2');
-                    const priceText = priceEl ? priceEl.textContent.trim() : null;
+                    const priceText = getPriceText();
                     const priceValue = priceText ? parseInt(priceText.replace(/[$,]/g, '')) : null;
 
                     const dealerNameEl = document.querySelector('[data-testid="dealerName"]');
@@ -568,16 +592,16 @@ await Actor.main(async () => {
                         title: title || preflight.listingTitle,
                         price: priceValue || preflight.listingPriceValue || listing.price,
                         priceString: priceText || preflight.listingPriceString || listing.priceString,
-                        year: yearEl ? yearEl.textContent.trim() : (listing.year || preflight.listingYear),
-                        make: makeEl ? makeEl.textContent.trim() : (listing.make || preflight.listingMake),
-                        model: modelEl ? modelEl.textContent.trim() : (listing.model || preflight.listingModel),
-                        trim: trimEl ? trimEl.textContent.trim() : listing.trim,
-                        mileage: mileageEl ? mileageEl.textContent.trim() : (listing.mileage || listing.odometer),
+                        year: getFieldText('year') || listing.year || preflight.listingYear,
+                        make: getFieldText('make') || listing.make || preflight.listingMake,
+                        model: getFieldText('model') || listing.model || preflight.listingModel,
+                        trim: getFieldText('trim') || listing.trim,
+                        mileage: getFieldText('mileage') || listing.mileage || listing.odometer,
                         dealerName: dealerNameEl ? dealerNameEl.textContent.trim() : (listing.dealerName || preflight.listingSellerName),
                         dealerCity: locationFromTitle ? locationFromTitle.textContent.trim() : (listing.dealerCity || preflight.listingSellerCity),
                         dealerAddress: dealerAddressEl ? dealerAddressEl.textContent.trim() : null,
                         dealRating: listing.dealRating || listing.dealBadge,
-                        bodyType: bodyTypeEl ? bodyTypeEl.textContent.trim() : listing.bodyType,
+                        bodyType: getFieldText('bodyType') || listing.bodyType,
                         fuelType: fuelType,
                         url: window.location.href,
                         source: 'dom',
