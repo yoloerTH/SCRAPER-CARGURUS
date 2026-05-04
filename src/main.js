@@ -140,22 +140,46 @@ async function applyBodyTypeFilter(page, bodyTypes) {
     try {
         console.log(`🚗 Setting body types: ${bodyTypes.join(', ')}`);
 
-        // Open Body Style accordion (6-minute timeout)
         await page.click('#BodyStyle-accordion-trigger', { timeout: 90000 });
         await page.waitForTimeout(1000);
 
-        // Click checkboxes for each body type
-        for (const bodyType of bodyTypes) {
-            if (bodyType.includes('Pickup')) {
-                // Find and click Pickup Truck checkbox (6-minute timeout)
-                await page.click('button[id*="PICKUP"], label:has-text("Pickup Truck")', { timeout: 90000 });
-                await page.waitForTimeout(500);
-                console.log('  ✅ Added Pickup Truck');
+        await page.locator('#BodyStyle-accordion-content').waitFor({ state: 'visible', timeout: 90000 });
+
+        const clickCheckboxByAriaLabelContains = async (groupName, labelText) => {
+            const checkbox = page.locator(`button[role="checkbox"][aria-label*="${labelText}"]`).first();
+
+            await checkbox.waitFor({ state: 'attached', timeout: 90000 });
+            await checkbox.scrollIntoViewIfNeeded({ timeout: 10000 });
+
+            const checkedBefore = await checkbox.getAttribute('aria-checked');
+            if (checkedBefore === 'true') {
+                console.log(`  ✅ ${groupName}: ${labelText} already selected`);
+                return true;
             }
-            // SUV/Crossover is already selected by default on the base URL
+
+            await checkbox.click({ timeout: 30000, force: true });
+            await page.waitForTimeout(700);
+
+            const checkedAfter = await checkbox.getAttribute('aria-checked');
+            if (checkedAfter !== 'true') {
+                throw new Error(`${groupName}: clicked ${labelText}, but aria-checked is ${checkedAfter}`);
+            }
+
+            console.log(`  ✅ ${groupName}: Added ${labelText}`);
+            return true;
+        };
+
+        for (const bodyType of bodyTypes) {
+            if (bodyType.includes('SUV')) {
+                await clickCheckboxByAriaLabelContains('Body type', 'SUV / Crossover');
+            }
+
+            if (bodyType.includes('Pickup')) {
+                await clickCheckboxByAriaLabelContains('Body type', 'Pickup Truck');
+            }
         }
 
-        await page.waitForTimeout(2000); // Wait for results to update
+        await page.waitForTimeout(2000);
         return true;
     } catch (error) {
         console.log(`  ❌ Body type filter failed: ${error.message}`);
