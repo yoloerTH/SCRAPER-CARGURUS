@@ -25,6 +25,37 @@ async function applyFilters(page, filters, searchRadius) {
     return true;
 }
 
+async function ensureAccordionOpen(page, triggerSelector, contentSelector, name) {
+    const trigger = page.locator(triggerSelector).first();
+    const content = page.locator(contentSelector).first();
+
+    await trigger.waitFor({ state: 'visible', timeout: 90000 });
+
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        const triggerExpanded = await trigger.getAttribute('aria-expanded').catch(() => null);
+        const contentState = await content.getAttribute('data-state').catch(() => null);
+
+        if (triggerExpanded === 'true' || contentState === 'open') {
+            console.log(`  ✅ ${name} accordion is open`);
+            return true;
+        }
+
+        await trigger.scrollIntoViewIfNeeded({ timeout: 10000 });
+        await trigger.click({ timeout: 10000, force: true });
+        await page.waitForTimeout(800);
+
+        const updatedExpanded = await trigger.getAttribute('aria-expanded').catch(() => null);
+        const updatedContentState = await content.getAttribute('data-state').catch(() => null);
+
+        if (updatedExpanded === 'true' || updatedContentState === 'open') {
+            console.log(`  ✅ Opened ${name} accordion`);
+            return true;
+        }
+    }
+
+    throw new Error(`${name} accordion did not open`);
+}
+
 async function findDistanceDropdown(page) {
     const selectors = [
         'select[data-testid="select-filter-distance"]',
@@ -140,10 +171,7 @@ async function applyBodyTypeFilter(page, bodyTypes) {
     try {
         console.log(`🚗 Setting body types: ${bodyTypes.join(', ')}`);
 
-        await page.click('#BodyStyle-accordion-trigger', { timeout: 90000 });
-        await page.waitForTimeout(1000);
-
-        await page.locator('#BodyStyle-accordion-content').waitFor({ state: 'visible', timeout: 90000 });
+        await ensureAccordionOpen(page, '#BodyStyle-accordion-trigger', '#BodyStyle-accordion-content', 'Body Style');
 
         const clickCheckboxByAriaLabelContains = async (groupName, labelText) => {
             const checkbox = page.locator(`button[role="checkbox"][aria-label*="${labelText}"]`).first();
@@ -257,9 +285,7 @@ async function applyMakeFilter(page, makes) {
     try {
         console.log(`🏭 Setting makes: ${makes.join(', ')}`);
 
-        // Open Make & Model accordion
-        await page.click('#MakeAndModel-accordion-trigger', { timeout: 90000 });
-        await page.waitForTimeout(1000);
+        await ensureAccordionOpen(page, '#MakeAndModel-accordion-trigger', '#MakeAndModel-accordion-content', 'Make & Model');
 
         const showAllMakesButton = page.locator('button:has-text("Show all makes")').first();
         if (await showAllMakesButton.isVisible().catch(() => false)) {
@@ -306,9 +332,7 @@ async function applyPriceFilter(page) {
     try {
         console.log(`💰 Setting minimum price to: $35,000 CAD`);
 
-        // Open Price accordion (6-minute timeout)
-        await page.click('#Price-accordion-trigger', { timeout: 90000 });
-        await page.waitForTimeout(1000);
+        await ensureAccordionOpen(page, '#Price-accordion-trigger', '#Price-accordion-content', 'Price');
 
         // Find the MINIMUM slider specifically (not maximum)
         const minSlider = page.locator('[role="slider"][aria-label="Minimum"]');
@@ -343,9 +367,7 @@ async function applyDealRatingFilter(page, dealRatings) {
     try {
         console.log(`⭐ Setting deal ratings: ${dealRatings.join(', ')}`);
 
-        // Open Deal Rating accordion (6-minute timeout)
-        await page.click('#DealRating-accordion-trigger', { timeout: 90000 });
-        await page.waitForTimeout(1000);
+        await ensureAccordionOpen(page, '#DealRating-accordion-trigger', '#DealRating-accordion-content', 'Deal Rating');
 
         // Click checkboxes for each deal rating
         for (const rating of dealRatings) {
