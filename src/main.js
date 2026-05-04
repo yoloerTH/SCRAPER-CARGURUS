@@ -163,6 +163,72 @@ async function applyBodyTypeFilter(page, bodyTypes) {
     }
 }
 
+function normalizeMakeName(make) {
+    const map = {
+        ram: 'RAM',
+        gmc: 'GMC',
+        bmw: 'BMW',
+        fiat: 'FIAT',
+        mini: 'MINI',
+        infiniti: 'INFINITI',
+        'alfa romeo': 'Alfa_Romeo',
+        'land rover': 'Land_Rover',
+        'mercedes benz': 'Mercedes-Benz',
+        'mercedes-benz': 'Mercedes-Benz',
+    };
+
+    const key = make.trim().toLowerCase();
+    return map[key] || make.trim().replace(/\s+/g, '_');
+}
+
+async function clickMakeCheckbox(page, make) {
+    const normalizedMake = normalizeMakeName(make);
+
+    const selectors = [
+        `button[data-testid="checkbox-FILTER.MAKE_MODEL.${normalizedMake}"]`,
+        `button[data-cg-ft="checkbox-FILTER.MAKE_MODEL.${normalizedMake}"]`,
+        `button[id="FILTER.MAKE_MODEL.${normalizedMake}"]`,
+        `button[role="checkbox"][aria-label="${make}"]`,
+        `button[role="checkbox"][aria-label="${normalizedMake}"]`,
+        `label:has-text("${make}")`,
+        `label:has-text("${normalizedMake}")`,
+    ];
+
+    for (const selector of selectors) {
+        const locator = page.locator(selector).first();
+
+        try {
+            await locator.waitFor({ state: 'attached', timeout: 3000 });
+            await locator.scrollIntoViewIfNeeded({ timeout: 5000 });
+            await page.waitForTimeout(300);
+
+            const checkbox = page.locator(`button[role="checkbox"][id="FILTER.MAKE_MODEL.${normalizedMake}"]`).first();
+            const checkedBefore = await checkbox.getAttribute('aria-checked').catch(() => null);
+
+            if (checkedBefore === 'true') {
+                console.log(`  ✅ ${make} already selected`);
+                return true;
+            }
+
+            await locator.click({ timeout: 10000, force: true });
+            await page.waitForTimeout(700);
+
+            const checkedAfter = await checkbox.getAttribute('aria-checked').catch(() => null);
+
+            if (checkedAfter === 'true') {
+                console.log(`  ✅ Added ${make} using selector: ${selector}`);
+                return true;
+            }
+
+            console.log(`  ⚠️ Clicked ${make}, but checkbox state is still: ${checkedAfter}`);
+        } catch (_) {
+            // Try next selector
+        }
+    }
+
+    return false;
+}
+
 async function applyMakeFilter(page, makes) {
     try {
         console.log(`🏭 Setting makes: ${makes.join(', ')}`);
@@ -171,23 +237,40 @@ async function applyMakeFilter(page, makes) {
         await page.click('#MakeAndModel-accordion-trigger', { timeout: 90000 });
         await page.waitForTimeout(1000);
 
-        // Click checkbox for each make (stable approach)
-        for (const make of makes) {
-            try {
-                // Handle special case: RAM needs to be uppercase to match button ID
-                const makeId = make.toUpperCase() === 'RAM' ? 'RAM' : make;
-
-                // Click the make button (escape dots in ID selector) with 6-minute timeout
-                await page.click(`#FILTER\\.MAKE_MODEL\\.${makeId}`, { timeout: 90000 });
-                console.log(`  ✅ Added ${make}`);
-                await page.waitForTimeout(500);
-            } catch (error) {
-                console.log(`  ❌ Could not click ${make}: ${error.message}`);
-                return false; // Stop immediately, don't burn 90s on every remaining make
-            }
+        const showAllMakesButton = page.locator('button:has-text("Show all makes")').first();
+        if (await showAllMakesButton.isVisible().catch(() => false)) {
+            await showAllMakesButton.click({ timeout: 5000 });
+            await page.waitForTimeout(1000);
+            console.log('  ✅ Expanded make list');
         }
 
-        await page.waitForTimeout(2000); // Wait for results to update
+        await page.locator('#FILTER\\.MAKE_MODEL, ul[id="FILTER.MAKE_MODEL"]').first()
+            .waitFor({ state: 'visible', timeout: 90000 });
+
+        for (const make of makes) {
+            const success = await clickMakeCheckbox(page, make);
+
+            if (!success) {
+                console.log(`  ❌ Could not click ${make}`);
+
+                const availableMakes = await page.evaluate(() => {
+                    return Array.from(document.querySelectorAll('button[role="checkbox"][id^="FILTER.MAKE_MODEL."]'))
+                        .map((button) => ({
+                            id: button.id,
+                            ariaLabel: button.getAttribute('aria-label'),
+                            checked: button.getAttribute('aria-checked'),
+                            visibleText: button.closest('li')?.textContent?.trim(),
+                        }));
+                });
+
+                console.log(`  🔎 Available makes: ${JSON.stringify(availableMakes)}`);
+                return false; // Stop immediately, don't burn 90s on every remaining make
+            }
+
+            await page.waitForTimeout(800);
+        }
+
+        await page.waitForTimeout(2500); // Wait for results to update
         return true;
     } catch (error) {
         console.log(`  ❌ Make filter failed: ${error.message}`);
